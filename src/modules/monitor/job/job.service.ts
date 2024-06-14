@@ -135,15 +135,14 @@ export class JobService implements OnModuleInit {
 
   /** 更新是否已经完成，完成则移除该任务并修改状态 */
   async updateTaskCompleteStatus(id: number) {
-    const jobs = await this.queue.getRepeatableJobs();
+    const jobs = await this.getRepeatableJobs();
     const task = await this.findOne(id);
     this.jobRepository.update(id, { lastExecTime: new Date() });
     // 如果下次执行时间小于当前时间，则表示已经执行完成。
     for (const job of jobs) {
       const currentTime = new Date().getTime();
-      if (job.id === id.toString() && job.cron === task.cron && job.next < currentTime) {
+      if (job.id === id.toString() && job.next < currentTime) {
         // 如果下次执行时间小于当前时间，则表示已经执行完成。
-        this.logger.log('停止了？');
         await this.stop(task);
         break;
       }
@@ -257,36 +256,21 @@ export class JobService implements OnModuleInit {
 
   /** 停止任务,如果传递了 任务信息，则只停止该任务，否则停止所有任务 */
   private async stop(job?: SysJob) {
-    if (job) {
-      const exist = await this.existJob(job.id.toString());
-      if (!exist) {
-        this.logger.error(`停止任务：${job.name}不存在`);
-        return;
-      }
-    }
-
-    const queueJobs = await this.queue.getJobs(['active', 'delayed', 'failed', 'paused', 'waiting', 'completed']);
-    // 移出任务
-    for (let i = 0; i < queueJobs.length; i++) {
+    const repeatableJobs = await this.getRepeatableJobs();
+    for (let i = 0; i < repeatableJobs.length; i++) {
       if (job) {
-        if (queueJobs[i].data.id === job.id) {
-          await queueJobs[i].remove();
+        if (job.id.toString() === repeatableJobs[i].id.toString()) {
+          await this.queue.removeRepeatableByKey(repeatableJobs[i].key);
         }
       } else {
-        await queueJobs[i].remove();
+        await this.queue.removeRepeatableByKey(repeatableJobs[i].key);
       }
     }
-
-    if (job && queueJobs.length > 0) {
+    if (job && repeatableJobs.length > 0) {
       await this.jobRepository.update(job.id, { status: 0 });
     }
   }
-
-  /** 查看队列中 任务是否存在 */
-  private async existJob(jobId: string): Promise<boolean> {
-    // https://github.com/OptimalBits/bull/blob/develop/REFERENCE.md#queueremoverepeatablebykey
-    const jobs = await this.queue.getRepeatableJobs();
-    const ids = jobs.map((item) => item.id);
-    return ids.includes(jobId);
+  private getRepeatableJobs() {
+    return this.queue.getRepeatableJobs();
   }
 }
