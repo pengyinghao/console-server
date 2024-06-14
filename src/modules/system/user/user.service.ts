@@ -150,7 +150,7 @@ export class UserService {
   async findUserById(userId: number) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: ['id', 'name', 'phone', 'email', 'address', 'sysUser', 'roleId', 'roleName']
+      select: ['id', 'name', 'phone', 'email', 'account', 'address', 'sysUser', 'roleId', 'roleName']
     });
     if (!user) throw new ApiException('用户不存在', ApiCode.DATA_ID_INVALID);
     if (user.freeze) throw new ApiException('用户被冻结', ApiCode.DATA_INVALID);
