@@ -1,0 +1,37 @@
+application:
+  prefix: '/api'
+  port: 3000
+
+# ip转换为城市
+ipToCityUrl: 'https://whois.pconline.com.cn/ipJson.jsp'
+
+# 数据库配置
+db:
+  mysql:
+    host: 'localhost' # 数据库地址
+    username: 'root' # 数据库用户名
+    password: 'abc123456'
+    database: 'manage'
+    port: 3306
+    charset: 'utf8mb4' # 数据库编码
+    logger: 'console' # 日志记录方式，支持 'file' 和 'console'
+    logging: true # 是否开启日志记录
+    multipleStatements: true # 是否允许执行多条SQL语句
+    synchronize: true # 是否自动同步数据库表结构
+    poolSize: 10 # 连接池大小
+    connectorPackage: 'mysql2'
+    supportBigNumbers: true # 是否支持大数字
+    bigNumberStrings: true # 是否将大数字转换为字符串
+
+redis:
+  host: 'localhost'
+  port: 6379
+
+file:
+  uploadDir: 'uploads' # 文件上传目录
+
+# jwt 配置
+jwt:
+  secret: 'peng'
+  expiresIn: '1h' # 有效期
+  refreshExpiresIn: '7d' # 刷新有效期
