@@ -57,8 +57,9 @@ export class UserController {
     const user = await this.userService.login(loginUser);
     this.redisService.delete(loginUser.uuid);
     if (user) {
-      this.handleOnline(user, req);
-      return this.handleToken(user);
+      const uuid = generateUUID();
+      this.handleOnline(user, req, uuid);
+      return this.handleToken(user, uuid);
     }
   }
 
@@ -69,8 +70,9 @@ export class UserController {
     try {
       const data = this.jwtService.verify(refreshToken);
       const user = await this.userService.findUserById(data.userId);
-      this.handleOnline(user, req);
-      return this.handleToken(user);
+      const uuid = generateUUID();
+      this.handleOnline(user, req, uuid);
+      return this.handleToken(user, uuid);
     } catch (e) {
       throw new UnauthorizedException('token 已失效，请重新登录');
     }
@@ -78,7 +80,7 @@ export class UserController {
 
   /** 获取当前用户信息、菜单、权限等 */
   @Get('current')
-  async current() {
+  async current(@Req() req: Request) {
     const user = await this.userService.detail();
     const userRole = await this.userService.getUserRole();
     const menu = await this.userService.getMenusForUser();
@@ -87,7 +89,7 @@ export class UserController {
     user.email = user.email.replace(/^([a-zA-Z0-9._%+-]{2})[a-zA-Z0-9._%+-]*([a-zA-Z0-9._%+-]{2})@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$/, '$1****$2@$3');
 
     return DataResult.ok({
-      user,
+      user: { ...user, uuid: req.user.uuid },
       menu: menu.filter((item) => item.type !== 2),
       btn: menu
         .filter((item) => item.type === 2)
@@ -104,10 +106,9 @@ export class UserController {
   }
 
   /** 处理在线用户 */
-  private async handleOnline(user: SysUser, req: Request) {
+  private async handleOnline(user: SysUser, req: Request, uuid: string) {
     const { addr, ip } = await this.httpService.ipToCity(req.ip);
     const userAgent = useragent.parse(req.headers['user-agent']);
-    const uuid = generateUUID();
     const redisData: OnlineUser = {
       uuid,
       account: user.account,
@@ -125,13 +126,14 @@ export class UserController {
   }
 
   /** 处理token */
-  private async handleToken(user: SysUser) {
+  private async handleToken(user: SysUser, uuid: string) {
     const accessTokenObj: Express.Request['user'] = {
       id: user.id,
       name: user.name,
       phone: user.phone,
       roleId: user.roleId,
-      roleName: user.roleName
+      roleName: user.roleName,
+      uuid
     };
 
     const expire = this.configService.get<string>('jwt.expiresIn');
@@ -157,6 +159,15 @@ export class UserController {
       access_token,
       refresh_token
     });
+  }
+
+  /** 退出登录 */
+  @Post('loginOut')
+  async loginOut(@Req() req: Request) {
+    const uuid = req.user.uuid;
+    // 删除当前在线用户
+    this.redisService.delete(`${Cache.USER_LOGIN}${uuid}`);
+    return DataResult.ok();
   }
 
   /** 创建用户 */

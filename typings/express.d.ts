@@ -14,6 +14,8 @@ declare global {
         roleId: number;
         /** 角色名称 */
         roleName: string;
+        /** 唯一标识 */
+        uuid: string;
       };
     }
   }
