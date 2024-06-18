@@ -88,7 +88,9 @@ export class UserController {
     const menu = await this.userService.getMenusForUser();
 
     user.phone = user.phone.replace(/(\d{3})\d*(\d{4})/, '$1****$2');
-    user.email = user.email.replace(/^([a-zA-Z0-9._%+-]{2})[a-zA-Z0-9._%+-]*([a-zA-Z0-9._%+-]{2})@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$/, '$1****$2@$3');
+
+    if (user.email)
+      user.email = user.email.replace(/^([a-zA-Z0-9._%+-]{2})[a-zA-Z0-9._%+-]*([a-zA-Z0-9._%+-]{2})@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$/, '$1****$2@$3');
 
     return DataResult.ok({
       user: { ...user, uuid: req.user.uuid },
