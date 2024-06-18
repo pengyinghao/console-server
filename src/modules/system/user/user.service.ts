@@ -157,6 +157,10 @@ export class UserService {
     return user;
   }
 
+  async findUserDetail(id: number) {
+    return this.userRepository.findOneBy({ id: id });
+  }
+
   /** 创建用户 */
   async create(userDto: CreateUserDto) {
     const foundUser = await this.userRepository.findOneBy({
@@ -248,6 +252,11 @@ export class UserService {
       throw new ApiException('操作失败', ApiCode.ERROR);
     }
     return res;
+  }
+
+  /** 更新密码 */
+  async updatePassword(id: number, newPassword: string) {
+    this.userRepository.update(id, { password: newPassword });
   }
 
   /** 分页查询用户 */

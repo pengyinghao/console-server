@@ -23,6 +23,8 @@ import { HttpService } from 'src/modules/http/http.service';
 import * as useragent from 'useragent';
 import { OnlineUser } from 'src/modules/monitor/online/entities/online-user';
 import { SysUser } from './entities/user';
+import { UpdatePasswordDto } from './dto/update-user-password.dto';
+import { decrypt } from 'src/utility/common/crypto';
 
 @Controller('system/user')
 @LogRecordController('用户管理')
@@ -71,7 +73,7 @@ export class UserController {
       const data = this.jwtService.verify(refreshToken);
       const user = await this.userService.findUserById(data.userId);
       const uuid = generateUUID();
-      this.handleOnline(user, req, uuid);
+      await this.handleOnline(user, req, uuid);
       return this.handleToken(user, uuid);
     } catch (e) {
       throw new UnauthorizedException('token 已失效，请重新登录');
@@ -122,7 +124,7 @@ export class UserController {
     };
 
     const expire = this.configService.get<string>('jwt.expiresIn');
-    this.redisService.set(`${Cache.USER_LOGIN}${uuid}`, redisData, ms(expire));
+    await this.redisService.set(`${Cache.USER_LOGIN}${uuid}`, redisData, ms(expire));
   }
 
   /** 处理token */
@@ -226,6 +228,22 @@ export class UserController {
   @Put('avatar')
   async updateUserAvatar(@Query('url') url: string) {
     await this.userService.updateUserAvatar(url);
+    return DataResult.ok();
+  }
+
+  @Post('updatePassword')
+  @LogRecordAction('修改密码', 'update')
+  async updatePassword(@Body() updatePasswordDto: UpdatePasswordDto, @Req() req: Request) {
+    const user = await this.userService.findUserDetail(req.user.id);
+
+    if (decrypt(updatePasswordDto.newPassword) === decrypt(updatePasswordDto.oldPassword)) {
+      throw new ApiException('新密码不能与旧密码相同', ApiCode.DATA_INVALID);
+    }
+
+    if (decrypt(user.password) !== decrypt(updatePasswordDto.oldPassword)) throw new ApiException('原密码错误', ApiCode.DATA_INVALID);
+    await this.userService.updatePassword(user.id, updatePasswordDto.newPassword);
+
+    this.redisService.delete(`${Cache.USER_LOGIN}${req.user.uuid}`);
     return DataResult.ok();
   }
 }
