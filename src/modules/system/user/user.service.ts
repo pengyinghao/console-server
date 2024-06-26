@@ -23,8 +23,10 @@ import { SysRoleMenu } from '../role/entities/role-menu';
 import { SysLoginLog } from '../login-log/entities/login-log';
 import { LoginLogService } from '../login-log/login-log.service';
 import { decrypt } from 'src/utility/common/crypto';
+
 export class UserService {
   private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(SysUser)
     private userRepository: Repository<SysUser>,
@@ -68,7 +70,8 @@ export class UserService {
         name, 
         type, 
         code,
-        delete_time
+        delete_time,
+        fixed
       FROM sys_menu
       WHERE id IN (${menuIds.join(',')})
       UNION
@@ -86,16 +89,16 @@ export class UserService {
         m.name, 
         m.type, 
         m.code,
-        m.delete_time
+        m.delete_time,
+        m.fixed
       FROM sys_menu m
       INNER JOIN menu_tree mt ON mt.parentId = m.id
+      AND m.status=1
     )
     SELECT * FROM menu_tree
-         where status=1
-         and delete_time is null
+         where delete_time is null
      ORDER BY sort ASC;
   `;
-
     const res = await this.roleMenuRepository.query(query);
     return res;
   }
@@ -113,18 +116,18 @@ export class UserService {
       account: loginUser.account
     });
     if (!user) {
-      this.loginLog(LoginStatus.FAIL, '用户不存在');
+      await this.loginLog(LoginStatus.FAIL, '用户不存在');
       throw new ApiException('用户不存在', ApiCode.DATA_ID_INVALID);
     }
     if (user.freeze) {
-      this.loginLog(LoginStatus.FAIL, '用户被冻结');
+      await this.loginLog(LoginStatus.FAIL, '用户被冻结');
       throw new ApiException('用户被冻结', ApiCode.DATA_INVALID);
     }
     if (decrypt(user.password) !== decrypt(loginUser.password)) {
-      this.loginLog(LoginStatus.FAIL, '密码错误');
+      await this.loginLog(LoginStatus.FAIL, '密码错误');
       throw new ApiException('密码错误', ApiCode.DATA_INVALID);
     }
-    this.loginLog(LoginStatus.SUCCESS, '登录成功');
+    await this.loginLog(LoginStatus.SUCCESS, '登录成功');
     return user;
   }
 
@@ -142,7 +145,6 @@ export class UserService {
     loginLog.status = code;
     loginLog.message = msg;
     this.loginInfoService.create(loginLog);
-    // this.eventEmitter.emit(Listeners.LOGIN_INFO_CREATE, loginLog);
     this.logger.debug(JSON.stringify(loginLog));
   }
 
