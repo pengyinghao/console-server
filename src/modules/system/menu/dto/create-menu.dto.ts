@@ -53,4 +53,7 @@ export class CreateMenuDto {
   @IsOptional()
   @MaxLength(200, { message: '路由最大长度为200' })
   params?: string;
+
+  /** 固定tab */
+  fixed: number;
 }

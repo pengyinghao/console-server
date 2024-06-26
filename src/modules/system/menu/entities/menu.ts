@@ -41,6 +41,9 @@ export class SysMenu {
   @Column({ comment: '显示顺序' })
   sort: number;
 
+  @Column({ comment: '固定页签(0:固定，1：不固定)', default: 1 })
+  fixed: number;
+
   @Column({
     comment: '上级菜单id',
     default: 0,
