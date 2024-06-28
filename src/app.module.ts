@@ -31,6 +31,7 @@ import { JobModule } from './modules/monitor/job/job.module';
 import { TaskModule } from './task/task.module';
 import { JobLogModule } from './modules/monitor/job-log/job-log.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { WebsocketModule } from './modules/websocket/websocket.module';
 
 @Module({
   imports: [
@@ -84,7 +85,8 @@ import { AuthModule } from './modules/auth/auth.module';
     OnlineModule,
     JobLogModule,
     TaskModule.forRoot(),
-    AuthModule
+    AuthModule,
+    WebsocketModule
   ],
   controllers: [AppController],
   providers: [
