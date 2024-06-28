@@ -7,12 +7,10 @@ import { ApiException } from 'src/utility/common/api.exception';
 import { ApiCode } from 'src/utility/enums';
 import { SearchRoleDto } from './dto/search-role.dto';
 import { RoleMenuAuthorizeDto } from './dto/role-menu-authorize.dto';
-import { getPaginationRange } from 'src/utility/common';
-import { RoleUserDto } from './dto/role-user.dto';
 import { RoleEnum } from './enums/role.enum';
 import { SysRole } from './entities/role';
 import { SysRoleMenu } from './entities/role-menu';
-import { SysUser } from '../user/entities/user';
+import { SysMenu } from '../menu/entities/menu';
 
 @Injectable()
 export class RoleService {
@@ -21,9 +19,6 @@ export class RoleService {
 
   @InjectRepository(SysRoleMenu)
   private readonly roleMenuRepository: Repository<SysRoleMenu>;
-
-  @InjectRepository(SysUser)
-  private readonly userRepository: Repository<SysUser>;
 
   @InjectEntityManager()
   private readonly entityManager: EntityManager;
@@ -132,19 +127,67 @@ export class RoleService {
     return true;
   }
 
-  async roleUser(query: RoleUserDto) {
-    const paging = getPaginationRange(query);
-    const repository = this.userRepository
-      .createQueryBuilder('user')
-      .innerJoin('sys_role', 'role', 'user.roleId = role.id')
-      .where('user.roleId = :id', { id: query.roleId });
+  /** 通过用户角色查询启用的菜单 */
+  async getMenusForUser(userId: number): Promise<SysMenu[]> {
+    const authorizedMenuInfos = await this.roleMenuRepository
+      .createQueryBuilder('role_menu')
+      .innerJoin('sys_role', 'role', 'role.id=role_menu.roleId')
+      .leftJoin('sys_user', 'user', 'user.roleId=role.id')
+      .where(`user.id=:id`, { id: userId })
+      .getMany();
 
-    const data = await repository.skip(paging.skip).take(paging.take).getMany();
-    const total = await repository.getCount();
+    const menuIds = authorizedMenuInfos.map((menu) => menu.menuId);
 
-    return {
-      data,
-      total
-    };
+    if (menuIds.length === 0) {
+      return [];
+    }
+
+    const query = `
+    WITH RECURSIVE menu_tree AS (
+      SELECT 
+        id, 
+        sort, 
+        component, 
+        display, 
+        icon,
+        status,
+        open_type AS openType, 
+        parent_id AS parentId, 
+        url, 
+        params, 
+        name, 
+        type, 
+        code,
+        delete_time,
+        fixed
+      FROM sys_menu
+      WHERE id IN (${menuIds.join(',')})
+      UNION
+      SELECT 
+        m.id, 
+        m.sort, 
+        m.component, 
+        m.display, 
+        m.icon, 
+        m.status,
+        m.open_type AS openType, 
+        m.parent_id AS parentId, 
+        m.url, 
+        m.params, 
+        m.name, 
+        m.type, 
+        m.code,
+        m.delete_time,
+        m.fixed
+      FROM sys_menu m
+      INNER JOIN menu_tree mt ON mt.parentId = m.id
+      AND m.status=1
+    )
+    SELECT * FROM menu_tree
+         where delete_time is null
+     ORDER BY sort ASC;
+  `;
+    const res = await this.roleMenuRepository.query(query);
+    return res;
   }
 }

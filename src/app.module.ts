@@ -30,6 +30,7 @@ import { OnlineModule } from './modules/monitor/online/online.module';
 import { JobModule } from './modules/monitor/job/job.module';
 import { TaskModule } from './task/task.module';
 import { JobLogModule } from './modules/monitor/job-log/job-log.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -81,8 +82,9 @@ import { JobLogModule } from './modules/monitor/job-log/job-log.module';
     JobModule,
     LoginLogModule,
     OnlineModule,
+    JobLogModule,
     TaskModule.forRoot(),
-    JobLogModule
+    AuthModule
   ],
   controllers: [AppController],
   providers: [

@@ -9,15 +9,16 @@ import { DictListSearchDto } from './dto/dict-list-search.dto';
 import { getPaginationRange } from 'src/utility/common';
 import { Status } from 'src/utility/enums/status.enum';
 import { SysDict } from './entities/dict';
-import { SysDictType } from '../dict-type/entities/dict-type';
+
+import { DictTypeService } from '../dict-type/dict-type.service';
 
 @Injectable()
 export class DictService {
-  @InjectRepository(SysDict)
-  dictRepository: Repository<SysDict>;
-
-  @InjectRepository(SysDictType)
-  dictTypeRepository: Repository<SysDictType>;
+  constructor(
+    @InjectRepository(SysDict)
+    private dictRepository: Repository<SysDict>,
+    private dictTypeService: DictTypeService
+  ) {}
 
   /** 保存 */
   async create(createDictDto: CreateDictDto) {
@@ -82,8 +83,7 @@ export class DictService {
 
   /** 通过字典类型编号 查询字典信息 */
   async findByTypeNo(typeNo: string) {
-    const dictType = await this.dictTypeRepository.findOneBy({ no: typeNo });
-    if (!dictType) throw new ApiException('字典类型不存在', ApiCode.DATA_ID_INVALID);
+    const dictType = await this.dictTypeService.findByNo(typeNo);
 
     return await this.dictRepository
       .createQueryBuilder()

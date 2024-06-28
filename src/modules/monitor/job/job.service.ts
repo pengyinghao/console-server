@@ -11,7 +11,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAME } from 'src/utility/constant';
 import { CronRepeatOptions, EveryRepeatOptions, Queue } from 'bull';
 import { RedisService } from 'src/modules/redis/redis.service';
-import * as ms from 'ms';
+import ms = require('ms');
 import { TASK } from 'src/utility/decorator';
 import { ModuleRef, Reflector } from '@nestjs/core';
 

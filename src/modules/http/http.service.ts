@@ -3,8 +3,8 @@ import { HttpService as AxiosHttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import * as iconv from 'iconv-lite';
 import { RedisService } from '../redis/redis.service';
-import { Cache } from 'src/utility/enums';
-import * as ms from 'ms';
+import { RedisCache } from 'src/utility/enums';
+import ms = require('ms');
 import { City } from './entities/City';
 import { AxiosRequestConfig, AxiosResponse } from 'axios';
 
@@ -81,7 +81,7 @@ export class HttpService {
     if (ip.includes('127.0.0.1')) {
       ip = ip.replace(/^.*:/, '');
     }
-    const redisName = `${Cache.IP_TO_CITY}${ip}`;
+    const redisName = `${RedisCache.IP_TO_CITY}${ip}`;
     const info = await this.redisService.get(redisName);
     if (info) return info;
 

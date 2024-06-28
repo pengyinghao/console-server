@@ -9,16 +9,13 @@ import { DictTypeListSearchDto } from './dto/dict-type-list-search.dto';
 import { getPaginationRange } from 'src/utility/common';
 import { Status, ApiCode } from 'src/utility/enums';
 import { SysDictType } from './entities/dict-type';
-import { SysDict } from '../dict/entities/dict';
+import { DictService } from '../dict/dict.service';
 
 @Injectable()
 export class DictTypeService {
   @InjectRepository(SysDictType)
   private readonly dictTypeRepository: Repository<SysDictType>;
-
-  @InjectRepository(SysDict)
-  private readonly dictRepository: Repository<SysDict>;
-
+  private dictService: DictService;
   constructor(@InjectEntityManager() private readonly entityManager: EntityManager) {}
 
   /** 创建字典类型 */
@@ -68,9 +65,16 @@ export class DictTypeService {
     if (dictType.status === Status.enable) throw new ApiException('启用的数据不允许删除', ApiCode.DATA_INVALID);
 
     await this.entityManager.transaction(async () => {
-      await this.dictRepository.delete({ typeId: id });
+      await this.dictService.deleteByTypeId(id);
       await this.dictTypeRepository.delete({ id });
     });
+  }
+
+  /** 通过字典编号查询字典信息 */
+  async findByNo(no: string) {
+    const dictType = await this.dictTypeRepository.findOneBy({ no: no });
+    if (!dictType) throw new ApiException('字典类型不存在', ApiCode.DATA_ID_INVALID);
+    return dictType;
   }
 
   /** 查询字典详情 */

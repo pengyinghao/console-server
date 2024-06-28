@@ -2,7 +2,7 @@ import { PipeTransform, Injectable, HttpStatus } from '@nestjs/common';
 import { ApiException } from '../common/api.exception';
 import { ApiCode } from '../enums/api.code.enum';
 import { RedisService } from 'src/modules/redis/redis.service';
-import { Cache } from '../enums';
+import { RedisCache } from '../enums';
 import { SysParams } from 'src/modules/system/param/entities/params';
 @Injectable()
 export class FileSizeValidationPipe implements PipeTransform {
@@ -21,7 +21,7 @@ export class FileSizeValidationPipe implements PipeTransform {
   async transform(value: Express.Multer.File | Express.Multer.File[]) {
     if (!value) throw new ApiException('未上传文件', ApiCode.BAD, HttpStatus.BAD_REQUEST);
 
-    const params = await this.redisService.get<SysParams[]>(Cache.SYS_PARAMS);
+    const params = await this.redisService.get<SysParams[]>(RedisCache.SYS_PARAMS);
     const uploadParams = params.find((item) => item.label === 'file.size');
     let uploadLimit = 1024 * 2; // 默认2m
     if (uploadParams) {

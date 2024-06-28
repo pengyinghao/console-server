@@ -1,18 +1,37 @@
 import { Injectable } from '@nestjs/common';
-import { CreateLoginLogDto } from './dto/create-login-info.dto';
 import { Between, FindOptionsWhere, Like, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SearchLoginLogDto } from './dto/search-login-info-dto';
 import { getPaginationRange } from 'src/utility/common';
 import { SysLoginLog } from './entities/login-log';
+import useragent = require('useragent');
+import { Request } from 'express';
+import requestIp = require('request-ip');
+import { HttpService } from 'src/modules/http/http.service';
+import { LoginStatus } from './enums/login.status.enum';
 
 @Injectable()
 export class LoginLogService {
-  @InjectRepository(SysLoginLog)
-  repository: Repository<SysLoginLog>;
+  constructor(
+    @InjectRepository(SysLoginLog)
+    private repository: Repository<SysLoginLog>,
+    private httpService: HttpService
+  ) {}
 
-  create(createLoginLogDto: CreateLoginLogDto) {
-    this.repository.save(createLoginLogDto);
+  async create({ code, msg, request }: { code: LoginStatus; msg: string; request: Request }) {
+    const userAgent = useragent.parse(request.headers['user-agent']);
+    const clientIp = requestIp.getClientIp(request) || request.ip;
+    const { addr, ip } = await this.httpService.ipToCity(clientIp);
+    const loginLog = new SysLoginLog();
+    loginLog.account = request.body.account;
+    loginLog.loginIp = ip;
+    loginLog.loginAddr = addr;
+    loginLog.browser = userAgent.toAgent();
+    loginLog.os = userAgent.os.toString();
+    loginLog.loginTime = new Date();
+    loginLog.status = code;
+    loginLog.message = msg;
+    this.repository.save(loginLog);
   }
 
   async list(query: SearchLoginLogDto) {
