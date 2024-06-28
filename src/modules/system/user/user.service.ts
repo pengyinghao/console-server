@@ -1,151 +1,67 @@
-import { UserLoginDto } from './dto/user-login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Like, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Inject, Logger } from '@nestjs/common';
 import { UserListSearchDto } from './dto/user-list-search.dto';
-import { REQUEST } from '@nestjs/core';
-import { Request } from 'express';
 import { ApiException } from 'src/utility/common/api.exception';
 import { ApiCode } from 'src/utility/enums';
 import { PagingResponse } from 'src/utility/common/api.paging.response';
 import { getPaginationRange } from 'src/utility/common';
 import { Status } from 'src/utility/enums';
-import { LoginStatus } from '../login-log/enums/login.status.enum';
-import { HttpService } from 'src/modules/http/http.service';
-import * as useragent from 'useragent';
-import * as requestIp from 'request-ip';
 import { SysUser } from './entities/user';
-import { SysMenu } from '../menu/entities/menu';
-import { SysRole } from '../role/entities/role';
-import { SysRoleMenu } from '../role/entities/role-menu';
-import { SysLoginLog } from '../login-log/entities/login-log';
-import { LoginLogService } from '../login-log/login-log.service';
 import { decrypt } from 'src/utility/common/crypto';
+import { LoginStatus } from '../login-log/enums/login.status.enum';
+import { LoginLogService } from '../login-log/login-log.service';
+import { RoleUserDto } from './dto/role-user.dto';
+import { Request } from 'express';
 
 export class UserService {
-  private readonly logger = new Logger(UserService.name);
-
   constructor(
     @InjectRepository(SysUser)
     private userRepository: Repository<SysUser>,
-    @InjectRepository(SysRole)
-    private roleRepository: Repository<SysRole>,
-    @InjectRepository(SysRoleMenu)
-    private roleMenuRepository: Repository<SysRoleMenu>,
-    @Inject(REQUEST) private readonly request: Request,
-    private readonly httpService: HttpService,
     private loginInfoService: LoginLogService
   ) {}
 
-  /** 通过用户角色查询启用的菜单 */
-  async getMenusForUser(): Promise<SysMenu[]> {
-    const authorizedMenuInfos = await this.roleMenuRepository
-      .createQueryBuilder('role_menu')
-      .innerJoin('sys_role', 'role', 'role.id=role_menu.roleId')
-      .leftJoin('sys_user', 'user', 'user.roleId=role.id')
-      .where(`user.id=:id`, { id: this.request.user.id })
-      .getMany();
-
-    const menuIds = authorizedMenuInfos.map((menu) => menu.menuId);
-
-    if (menuIds.length === 0) {
-      return [];
-    }
-
-    const query = `
-    WITH RECURSIVE menu_tree AS (
-      SELECT 
-        id, 
-        sort, 
-        component, 
-        display, 
-        icon,
-        status,
-        open_type AS openType, 
-        parent_id AS parentId, 
-        url, 
-        params, 
-        name, 
-        type, 
-        code,
-        delete_time,
-        fixed
-      FROM sys_menu
-      WHERE id IN (${menuIds.join(',')})
-      UNION
-      SELECT 
-        m.id, 
-        m.sort, 
-        m.component, 
-        m.display, 
-        m.icon, 
-        m.status,
-        m.open_type AS openType, 
-        m.parent_id AS parentId, 
-        m.url, 
-        m.params, 
-        m.name, 
-        m.type, 
-        m.code,
-        m.delete_time,
-        m.fixed
-      FROM sys_menu m
-      INNER JOIN menu_tree mt ON mt.parentId = m.id
-      AND m.status=1
-    )
-    SELECT * FROM menu_tree
-         where delete_time is null
-     ORDER BY sort ASC;
-  `;
-    const res = await this.roleMenuRepository.query(query);
-    return res;
-  }
-
-  /** 获取用户角色 */
-  async getUserRole() {
-    return this.roleRepository.findOneBy({
-      id: this.request.user.roleId
-    });
-  }
-
   /** 用户登录 */
-  async login(loginUser: UserLoginDto) {
+  async login({ account, password, request }: { account: string; password: string; request: Request }) {
     const user = await this.userRepository.findOneBy({
-      account: loginUser.account
+      account: account
     });
     if (!user) {
-      await this.loginLog(LoginStatus.FAIL, '用户不存在');
+      await this.loginLog({ code: LoginStatus.FAIL, msg: '用户不存在', request });
       throw new ApiException('用户不存在', ApiCode.DATA_ID_INVALID);
     }
     if (user.freeze) {
-      await this.loginLog(LoginStatus.FAIL, '用户被冻结');
+      await this.loginLog({ code: LoginStatus.FAIL, msg: '用户被冻结', request });
       throw new ApiException('用户被冻结', ApiCode.DATA_INVALID);
     }
-    if (decrypt(user.password) !== decrypt(loginUser.password)) {
-      await this.loginLog(LoginStatus.FAIL, '密码错误');
+    if (decrypt(user.password) !== decrypt(password)) {
+      await this.loginLog({ code: LoginStatus.FAIL, msg: '密码错误', request });
       throw new ApiException('密码错误', ApiCode.DATA_INVALID);
     }
-    await this.loginLog(LoginStatus.SUCCESS, '登录成功');
+    await this.loginLog({ code: LoginStatus.SUCCESS, msg: '登录成功', request });
     return user;
   }
 
-  async loginLog(code: LoginStatus, msg: string) {
-    const userAgent = useragent.parse(this.request.headers['user-agent']);
-    const clientIp = requestIp.getClientIp(this.request) || this.request.ip;
-    const { addr, ip } = await this.httpService.ipToCity(clientIp);
-    const loginLog = new SysLoginLog();
-    loginLog.account = this.request.body.account;
-    loginLog.loginIp = ip;
-    loginLog.loginAddr = addr;
-    loginLog.browser = userAgent.toAgent();
-    loginLog.os = userAgent.os.toString();
-    loginLog.loginTime = new Date();
-    loginLog.status = code;
-    loginLog.message = msg;
-    this.loginInfoService.create(loginLog);
-    this.logger.debug(JSON.stringify(loginLog));
+  /** 角色用户信息 */
+  async roleUser(query: RoleUserDto) {
+    const paging = getPaginationRange(query);
+    const repository = this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('sys_role', 'role', 'user.roleId = role.id')
+      .where('user.roleId = :id', { id: query.roleId });
+
+    const data = await repository.skip(paging.skip).take(paging.take).getMany();
+    const total = await repository.getCount();
+
+    return {
+      data,
+      total
+    };
+  }
+
+  private async loginLog(params: { code: LoginStatus; msg: string; request: Request }) {
+    this.loginInfoService.create(params);
   }
 
   /** 通过用户id查询用户 */
@@ -236,18 +152,18 @@ export class UserService {
   }
 
   /** 获取当前用户详情 */
-  detail() {
+  detail(userId: number) {
     return this.userRepository.findOne({
       where: {
-        id: this.request.user.id
+        id: userId
       },
       select: ['id', 'account', 'email', 'name', 'phone', 'avatar', 'roleId', 'roleName']
     });
   }
 
   /** 修改 用户头像 */
-  async updateUserAvatar(url: string) {
-    const res = await this.userRepository.update(this.request.user.id, {
+  async updateUserAvatar(userId: number, url: string) {
+    const res = await this.userRepository.update(userId, {
       avatar: url
     });
     if (res.affected === 0) {

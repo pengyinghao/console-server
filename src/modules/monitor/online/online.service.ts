@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Cache } from 'src/utility/enums';
+import { RedisCache } from 'src/utility/enums';
 import { RedisService } from 'src/modules/redis/redis.service';
 import { SearchOnlineDto } from './dto/search-online.dto';
 import { OnlineUser } from 'src/modules/monitor/online/entities/online-user';
@@ -9,7 +9,7 @@ import { getPaginationRange } from 'src/utility/common';
 export class OnlineService {
   constructor(private redisService: RedisService) {}
   async list(query: SearchOnlineDto) {
-    let result = await this.redisService.getInfos<OnlineUser>(`${Cache.USER_LOGIN}*`);
+    let result = await this.redisService.getInfos<OnlineUser>(`${RedisCache.USER_LOGIN}*`);
 
     const { take, skip } = getPaginationRange(query);
     if (query.name) result = result.filter((item) => item.name.includes(query.name));

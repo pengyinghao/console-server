@@ -5,7 +5,7 @@ import { UpdateParamDto } from './dto/update-param.dto';
 import { FindOptionsWhere, Like, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ApiException } from 'src/utility/common/api.exception';
-import { ApiCode, Cache } from 'src/utility/enums';
+import { ApiCode, RedisCache } from 'src/utility/enums';
 import { SearchParamsPageDto } from './dto/search-param-page.dto';
 import { PagingResponse } from 'src/utility/common/api.paging.response';
 import { getPaginationRange } from 'src/utility/common';
@@ -26,7 +26,7 @@ export class ParamService implements OnModuleInit {
   /** 缓存系统参数 */
   async cacheParams() {
     const result = await this.findAll();
-    this.redisService.set(Cache.SYS_PARAMS, result);
+    this.redisService.set(RedisCache.SYS_PARAMS, result);
   }
 
   async create(createParamDto: CreateParamDto) {
@@ -85,7 +85,7 @@ export class ParamService implements OnModuleInit {
   /** 查询所有系统参数信息 */
   async findAll() {
     const result = await this.paramsRepository.find();
-    this.redisService.set(Cache.SYS_PARAMS, result);
+    this.redisService.set(RedisCache.SYS_PARAMS, result);
     return result;
   }
 
