@@ -1,4 +1,4 @@
-export enum Cache {
+export enum RedisCache {
   /** 验证码 */
   CAPTCHA_CODE = 'captcha_code:',
   /** 系统参数管理 */

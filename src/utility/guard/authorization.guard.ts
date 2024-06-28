@@ -1,47 +1,37 @@
-import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
 import { ALLOW } from '../decorator';
-import { RedisService } from 'src/modules/redis/redis.service';
-import { Cache } from '../enums';
+import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
-export class AuthorizationGuard implements CanActivate {
-  @Inject()
-  private reflector: Reflector;
-
-  @Inject(JwtService)
-  private jwtService: JwtService;
-
-  @Inject()
-  private redisService: RedisService;
-
-  /** 是否白名单 */
-  isWhiteList(context: ExecutionContext) {
-    return this.reflector.getAllAndOverride(ALLOW, [context.getHandler(), context.getClass()]);
+export class AuthorizationGuard extends AuthGuard('jwt') {
+  constructor(private reflector: Reflector) {
+    super();
   }
 
-  async canActivate(context: ExecutionContext) {
+  canActivate(context: ExecutionContext) {
+    const isAllow = this.reflector.getAllAndOverride<boolean>(ALLOW, [context.getHandler(), context.getClass()]);
+
     // 如果设置白名单，直接返回
-    if (this.isWhiteList(context)) return true;
+    if (isAllow) return true;
 
-    const request: Request = context.switchToHttp().getRequest();
+    return super.canActivate(context);
+    // const request: Request = context.switchToHttp().getRequest();
 
-    const authorization = request.headers.authorization || '';
-    if (!authorization) {
-      throw new UnauthorizedException('用户未登录');
-    }
-    try {
-      const token = authorization.split(' ')[1];
-      const data = this.jwtService.verify(token);
-      request.user = data.user;
+    // const authorization = request.headers.authorization || '';
+    // if (!authorization) {
+    //   throw new UnauthorizedException('用户未登录');
+    // }
+    // try {
+    //   const token = authorization.split(' ')[1];
+    //   const data = this.jwtService.verify(token);
+    //   request.user = data.user;
 
-      const result = await this.redisService.get(`${Cache.USER_LOGIN}${request.user.uuid}`);
-      if (result === null) return false;
-      return true;
-    } catch (e) {
-      throw new UnauthorizedException('token已过期，请重新登录');
-    }
+    //   const result = await this.redisService.get(`${Cache.USER_LOGIN}${request.user.uuid}`);
+    //   if (result === null) return false;
+    //   return true;
+    // } catch (e) {
+    //   throw new UnauthorizedException('token已过期，请重新登录');
+    // }
   }
 }

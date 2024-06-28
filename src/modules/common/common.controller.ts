@@ -4,8 +4,8 @@ import { noTransform } from 'src/utility/decorator';
 import { Allow } from 'src/utility/decorator';
 import { RedisService } from '../redis/redis.service';
 import { DataResult, generateUUID } from 'src/utility/common';
-import { Cache } from 'src/utility/enums';
-import * as ms from 'ms';
+import { RedisCache } from 'src/utility/enums';
+import ms = require('ms');
 
 @Controller()
 export class CommonController {
@@ -22,7 +22,7 @@ export class CommonController {
     const uuid = generateUUID();
 
     // 五分钟有效
-    await this.redisService.set(`${Cache.CAPTCHA_CODE}${uuid}`, text, ms('5m'));
+    await this.redisService.set(`${RedisCache.CAPTCHA_CODE}${uuid}`, text, ms('5m'));
     return DataResult.ok({
       code: result,
       uuid

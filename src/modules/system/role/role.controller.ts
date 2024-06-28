@@ -5,7 +5,6 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { DataResult } from 'src/utility/common/data.result';
 import { SearchRoleDto } from './dto/search-role.dto';
 import { RoleMenuAuthorizeDto } from './dto/role-menu-authorize.dto';
-import { RoleUserDto } from './dto/role-user.dto';
 import { LogRecordController, LogRecordAction } from 'src/utility/decorator';
 
 @Controller('system/role')
@@ -23,13 +22,6 @@ export class RoleController {
   @Get()
   async list(@Query() query: SearchRoleDto) {
     const res = await this.roleService.list(query);
-    return DataResult.ok(res);
-  }
-
-  /** 获取角色下的用户 */
-  @Get('user')
-  async roleUser(@Query() query: RoleUserDto) {
-    const res = await this.roleService.roleUser(query);
     return DataResult.ok(res);
   }
 
