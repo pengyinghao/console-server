@@ -9,10 +9,10 @@ import { SysLog } from './entities/log';
 @Injectable()
 export class LogService {
   @InjectRepository(SysLog)
-  userRepository: Repository<SysLog>;
+  logRepository: Repository<SysLog>;
 
   async create(logData: CreateLogDto) {
-    return this.userRepository.save(logData);
+    return this.logRepository.save(logData);
   }
 
   async pagination(query: SearchLogDto) {
@@ -29,7 +29,7 @@ export class LogService {
     }
 
     if (query.actionType) where['actionType'] = query.actionType;
-    const [data, total] = await this.userRepository.findAndCount({
+    const [data, total] = await this.logRepository.findAndCount({
       ...getPaginationRange(query),
       where,
       order: {
