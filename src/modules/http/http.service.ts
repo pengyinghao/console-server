@@ -80,6 +80,8 @@ export class HttpService {
   async ipToCity(ip: string): Promise<City> {
     if (ip.includes('127.0.0.1')) {
       ip = ip.replace(/^.*:/, '');
+    } else if (ip === '::1') {
+      ip = '127.0.0.1';
     }
     const redisName = `${RedisCache.IP_TO_CITY}${ip}`;
     const info = await this.redisService.get(redisName);

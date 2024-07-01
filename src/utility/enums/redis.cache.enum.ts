@@ -6,5 +6,7 @@ export enum RedisCache {
   /** 用户登录 */
   USER_LOGIN = 'user_login:',
   /** 通过ip获取城市 */
-  IP_TO_CITY = 'ip_to_city:'
+  IP_TO_CITY = 'ip_to_city:',
+  /** 存储socket 的唯一标识 */
+  SOCKET_ROOM = 'socket_room:'
 }
