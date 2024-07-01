@@ -4,7 +4,33 @@ import Redis from 'ioredis';
 
 @Injectable()
 export class RedisService {
-  constructor(@InjectRedis() public readonly redis: Redis) {}
+  public readonly redis: Redis;
+  private readonly proxy: Redis;
+
+  constructor(@InjectRedis() redis: Redis) {
+    this.redis = redis;
+    this.proxy = new Proxy(this, {
+      get: (target, prop, receiver) => {
+        // 如果RedisService有这个方法，优先使用
+        if (prop in target) {
+          return Reflect.get(target, prop, receiver);
+        }
+        // 否则尝试从 this.redis 上获取
+        if (prop in this.redis) {
+          const redisMethod = Reflect.get(this.redis, prop);
+          if (typeof redisMethod === 'function') {
+            return redisMethod.bind(this.redis);
+          }
+          return redisMethod;
+        }
+        return undefined;
+      }
+    }) as any;
+  }
+
+  get instance() {
+    return this.proxy;
+  }
 
   /**
    * 设置锁
@@ -18,6 +44,29 @@ export class RedisService {
   /** 取消锁 */
   unlock(key: string) {
     return this.delete(key);
+  }
+
+  /**
+   * 通过key 存储集合
+   * @param key 存储key值
+   * @param val 存储key对应的值
+   */
+  sadd(key: string, val: string) {
+    return this.redis.sadd(key, val);
+  }
+
+  /**
+   * 移出集合中 存储的 某项值
+   * @param key  存储key值
+   * @param val  需要移出的 val值
+   */
+  srem(key: string, val: any) {
+    return this.redis.srem(key, val);
+  }
+
+  /** 获取集合中的所有成员 */
+  smembers(key: string) {
+    return this.redis.smembers(key);
   }
 
   /**
